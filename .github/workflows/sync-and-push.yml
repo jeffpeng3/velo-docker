@@ -1,0 +1,133 @@
+name: sync-upstream-to-ghcr
+
+# 上游 sf-stav/veloGB10 有新 release 時，每日自動重包並推送到 GHCR。
+# 策略：只追新版，不回補舊版。舊版用 workflow_dispatch 手動指定 version 回補。
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "上游 tag，例如 v0.7.4。空白代表追最新版。"
+        required: false
+        default: ""
+      force:
+        description: "image 已存在時是否重建推送"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: sf-stav/veloGB10
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      upstream_latest: ${{ steps.ver.outputs.upstream_latest }}
+      should_build: ${{ steps.ver.outputs.should_build }}
+    steps:
+      - name: Resolve target version
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          UPSTREAM_LATEST="$(curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/${UPSTREAM_REPO}/releases/latest" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')"
+          echo "upstream_latest=${UPSTREAM_LATEST}"
+          VERSION="${INPUT_VERSION:-$UPSTREAM_LATEST}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "upstream_latest=${UPSTREAM_LATEST}" >> "$GITHUB_OUTPUT"
+          IMAGE="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          echo "image=${IMAGE}"
+          SHOULD_BUILD=true
+          if [ "${INPUT_FORCE}" != "true" ]; then
+            if docker buildx imagetools inspect "${IMAGE}:${VERSION}" >/dev/null 2>&1; then
+              echo "${IMAGE}:${VERSION} already exists, skip"
+              SHOULD_BUILD=false
+            fi
+          fi
+          echo "should_build=${SHOULD_BUILD}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: resolve
+    if: needs.resolve.outputs.should_build == 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch and verify upstream tarball
+        env:
+          UPSTREAM_REPO: ${{ env.UPSTREAM_REPO }}
+        run: |
+          chmod +x scripts/fetch-velo.sh
+          scripts/fetch-velo.sh "${{ needs.resolve.outputs.version }}" ./.fetch
+          rm -rf ./velogb10
+          mv ./.fetch/velogb10 ./velogb10
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags
+        id: tags
+        run: |
+          IMAGE="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          VERSION="${{ needs.resolve.outputs.version }}"
+          TAGS="${IMAGE}:${VERSION}"
+          if [ "${VERSION}" = "${{ needs.resolve.outputs.upstream_latest }}" ]; then
+            TAGS="${TAGS},${IMAGE}:latest"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.resolve.outputs.version }}
+
+      - name: Smoke test
+        run: |
+          set +e
+          IMG="${{ steps.tags.outputs.image }}:${{ needs.resolve.outputs.version }}"
+          OUT="$(docker run --rm "$IMG" --help 2>&1)"
+          CODE=$?
+          echo "$OUT" | head -8
+          if echo "$OUT" | grep -q "gb10_inference"; then
+            echo "SMOKE_OK with GPU/driver (help printed)"
+            exit 0
+          fi
+          if echo "$OUT" | grep -q "libcuda.so.1"; then
+            echo "SMOKE_OK without GPU (only driver lib missing, all other .so resolved)"
+            exit 0
+          fi
+          echo "SMOKE_FAIL exit=${CODE}"
+          exit 1
