@@ -1,0 +1,26 @@
+services:
+  velo:
+    image: ghcr.io/jeffpeng3/velo-docker:latest
+    ports:
+      - "8888:8888"
+    volumes:
+      - "${HOME}/models:/models:ro"
+    runtime: nvidia
+    command:
+      - --server
+      - --model-dir=/models/
+      - --port=8888
+      - --max-batch=1
+      - --max-seq-len 262144
+      - --prefix-cache=on
+      - --mtp=auto
+      - --ple-ram ssd
+      - --model-name model
+
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8888'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5m
+    restart: unless-stopped
