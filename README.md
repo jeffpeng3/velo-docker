@@ -38,4 +38,4 @@ docker run --rm --gpus all velo-docker:v0.7.4 --help | head -20
 
 ## 容量
 
-binary 約 30MB，PTX 約 60MB，CUDA runtime 依賴約 900MB，其中 `libcublasLt` 一個就佔 600MB。這是正確執行的下限，砍不掉。實測 image 約 1.16GB。base 沒用整套 `nvidia/cuda:runtime`，只拷 `cudart`、`cublas`、`cublasLt`、`curand`、`nvrtc`，省下約 1GB 用不到的 `cufft`、`cusolver`、`cusparse`。
+v0.7.5+ 的 EMB1 tarball 把 kernels 嵌進 binary，沒有外部 PTX，binary 會比舊版大；v0.7.4 以前是 binary 約 30MB 加 PTX 約 60MB。CUDA runtime 依賴約 900MB，其中 `libcublasLt` 一個就佔 600MB。這是正確執行的下限，砍不掉。base 沒用整套 `nvidia/cuda:runtime`，只拷 `cudart`、`cublas`、`cublasLt`、`curand`、`nvrtc`，省下約 1GB 用不到的 `cufft`、`cusolver`、`cusparse`。

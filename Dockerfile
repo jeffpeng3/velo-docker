@@ -34,7 +34,8 @@ RUN --mount=from=cuda-libs,source=/usr/local/cuda/lib64,target=/tmp/cudalib \
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64
 
 # 上游 tarball 解開後的 velogb10/ 目錄原樣拷入。
-# binary 用相對路徑讀 src/ptx，WORKDIR 必須是這個目錄。
+# v0.7.5+ (EMB1) 把 kernels 嵌進 binary，沒有外部 src/ptx；
+# v0.7.4 以前仍需同目錄的 src/ptx。WORKDIR 保持 /opt/velogb10。
 WORKDIR /opt/velogb10
 COPY velogb10/ ./
 

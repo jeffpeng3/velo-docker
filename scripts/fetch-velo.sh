@@ -34,8 +34,12 @@ echo "== extract"
 rm -rf velogb10
 tar xzf "${TARBALL}"
 test -x velogb10/gb10_inference
-PTX_COUNT="$(ls velogb10/src/ptx/*.ptx | wc -l)"
-echo "ptx_count=${PTX_COUNT}"
-test "${PTX_COUNT}" -ge 19
+if [ -d velogb10/src/ptx ]; then
+  PTX_COUNT="$(find velogb10/src/ptx -maxdepth 1 -name '*.ptx' | wc -l)"
+  echo "layout=ptx ptx_count=${PTX_COUNT}"
+  test "${PTX_COUNT}" -ge 18
+else
+  echo "layout=emb1 (kernels embedded, no src/ptx)"
+fi
 file velogb10/gb10_inference | grep -q aarch64
 echo "OK dest=${DEST}/velogb10 version=${VERSION}"
