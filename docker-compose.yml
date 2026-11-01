@@ -1,15 +1,15 @@
 services:
   velo:
-    image: ghcr.io/jeffpeng3/velo-docker:v0.7.6
+    image: ghcr.io/jeffpeng3/velo-docker:v0.7.8
     ports:
       - "8888:8888"
     volumes:
       # 掛 HF cache 的 repo 根目錄，snapshot 內的檔案是 ../../blobs 的相對 symlink。
       - "${HOME}/.cache/huggingface/hub/models--jeffpeng3--Swift-1.5-Qwen3.8-Flash-Next-EXL3-3.05bpw-heretic:/hf:ro"
-    runtime: nvidia
+    gpus: all
     command:
       - --server
-      - --model-dir=/hf/snapshots/9c1f15959052c3e12ae11758d37596d267828a6f
+      - --model-dir=/hf/snapshots/46b23dd204859c5f45c113d3f5ea532676e14149
       - --port=8888
       - --max-batch=4
       - --max-seq-len=262144

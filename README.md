@@ -16,6 +16,8 @@ docker run -d --name velo --gpus all -p 9000:9000 \
 - image 內是上游 tarball 原樣解包，`WORKDIR /opt/velogb10`，`ENTRYPOINT ["./gb10_inference"]`，直接把 server 參數接在後面
 - 模型不進 image，用 `-v` 掛載
 - 一定要加 `--gpus all`，`libcuda.so.1` 由 host driver 提供
+- `--runtime nvidia` 只選 runtime，沒有 device request 就不會注入 driver libs，容器會噴 `libcuda.so.1: cannot open shared object file`。Compose 用 `gpus: all`，不要用舊寫法 `runtime: nvidia`
+- 測 GPU 要覆蓋 entrypoint：`docker run --rm --gpus all --entrypoint nvidia-smi <image>`。直接接 `nvidia-smi` 會被當成 `gb10_inference` 的參數
 - 只開 `9000`，TP 的 `29500` 首版不支援
 
 ## tag
