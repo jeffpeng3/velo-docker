@@ -1,0 +1,4 @@
+services:
+  velo:
+    volumes:
+      - "${HOME}/.cache/huggingface/hub/models--jeffpeng3--Swift-1.5-Qwen3.8-Flash-Next-EXL3-3.05bpw-heretic/blobs/477edb1a14e40afacb357476ef2ab74c8903111f:/hf/models--jeffpeng3--Swift-1.5-Qwen3.8-Flash-Next-EXL3-3.05bpw-heretic/blobs/c0c686f9c38d70d179fb7b5f5aa7530bc913dda3:ro"
