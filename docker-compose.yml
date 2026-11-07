@@ -1,17 +1,24 @@
 services:
   velo:
-    image: ghcr.io/jeffpeng3/velo-docker:v0.7.8
+    image: ghcr.io/jeffpeng3/velo-docker:v0.7.8-q4k
+    # gb10_inference 沒有安裝 SIGTERM handler，當 PID 1 時 kernel 會丟棄 SIGTERM，
+    # docker stop 只能等滿 10s 後 SIGKILL。用 tini 當 PID 1 轉發訊號，關機 <1s。
+    init: true
     ports:
       - "8888:8888"
     volumes:
       - "${HOME}/.cache/huggingface/hub:/hf:ro"
     gpus: all
+    environment:
+      CUDA_DISABLE_PERF_BOOST: "1"
     command:
       - --server
       - --model-dir=/hf/models--jeffpeng3--Swift-1.5-Qwen3.8-Flash-Next-EXL3-3.05bpw-heretic/snapshots/498733b9060ddf79306dac9f88b9ba43e234023d
       - --port=8888
-      - --max-batch=4
-      - --max-seq-len=262144
+      - --max-batch=2
+      - --max-seq-len=524288
+      - --rope-yarn-factor=2.0
+      - --kv-cache=q4k
       - --prefix-cache=on
       - --prefix-ckpt-mem-gb=4
       - --mtp=auto
