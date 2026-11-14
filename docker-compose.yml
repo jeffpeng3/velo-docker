@@ -8,14 +8,17 @@ services:
       - "8888:8888"
     volumes:
       - "${HOME}/.cache/huggingface/hub:/hf:ro"
+      - "./chat_template.zh_tw.jinja:/chat_template.jinja:ro"
     gpus: all
     environment:
       CUDA_DISABLE_PERF_BOOST: "1"
     command:
       - --server
-      - --model-dir=/hf/models--jeffpeng3--Swift-1.5-Qwen3.8-Flash-Next-EXL3-3.05bpw-heretic/snapshots/498733b9060ddf79306dac9f88b9ba43e234023d
-      # v0.7.9 的 --chat-template 直接吃 mount 內的 zh_tw.jinja，不需要再蓋 blob。
-      - --chat-template=/hf/models--jeffpeng3--Swift-1.5-Qwen3.8-Flash-Next-EXL3-3.05bpw-heretic/snapshots/498733b9060ddf79306dac9f88b9ba43e234023d/zh_tw.jinja
+      - --hf-cache=/hf
+      - --model-dir
+      - jeffpeng3/Swift-1.5-Qwen3.8-Flash-Next-EXL3-3.05bpw-heretic
+      # --chat-template 只讀給定路徑，不會相對 model dir；用 repo 內的檔案，避免 snapshot hash。
+      - --chat-template=/chat_template.jinja
       - --port=8888
       - --max-batch=2
       # 524288 = 模型原生 262144 × rope yarn 2.0。兩個 flag 必須成對，少一個會被 clamp 回 262144。
@@ -31,7 +34,6 @@ services:
       - --prefill-chunk=4095
       - --prefill-interleave=1
       - --ple-ram=ssd
-      - --gpu-wait=hybrid
       - --model-name=model
       # image 沒有 curl，開機版號檢查本來就靜默；明寫避免以後裝 curl 時多出網路等待。
       - --no-update-check
