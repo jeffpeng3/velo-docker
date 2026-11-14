@@ -22,7 +22,7 @@ docker run -d --name velo --gpus all -p 9000:9000 \
 - v0.7.9 起 `--kv-cache q4k` 已在上游，不需要自建 fork image。容器內不要用 `--update`，image 也沒有 `curl`；開機版號檢查用 `--no-update-check` 關掉
 - 自訂 chat template 用 `--chat-template <path>`，不用再覆寫 HF cache 裡的 blob
 - `--model-dir` 用 HF repo id 時必須寫成 `--model-dir <id>` 兩個參數，`--model-dir=<id>` 不會觸發解析。`--hf-cache` 要指到含 `models--*` 的 `hub` 目錄
-- `--gpu-wait` 在 v0.7.9 只接到 NVFP4 trunk 的 `sync_stream`，EXL3 server 走 `dev().synchronize()`，實測 `hybrid` 與 `spin` 的 tok/s 與 CPU 完全相同，EXL3 不需要設
+- `--gpu-wait=hybrid` 在 v0.7.9 的 EXL3 server 尚未生效，`velogb10_gpu_wait_hybrid_waits_total` 會是 0；留著是為了上游接上後自動生效。每次升版用 hybrid 開一次，counter 大於 0 才需要重新量測
 
 ## tag
 
