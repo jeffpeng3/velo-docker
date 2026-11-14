@@ -1,6 +1,6 @@
 services:
   velo:
-    image: ghcr.io/jeffpeng3/velo-docker:v0.7.8-q4k
+    image: ghcr.io/jeffpeng3/velo-docker:v0.7.9
     # gb10_inference 沒有安裝 SIGTERM handler，當 PID 1 時 kernel 會丟棄 SIGTERM，
     # docker stop 只能等滿 10s 後 SIGKILL。用 tini 當 PID 1 轉發訊號，關機 <1s。
     init: true
@@ -14,8 +14,11 @@ services:
     command:
       - --server
       - --model-dir=/hf/models--jeffpeng3--Swift-1.5-Qwen3.8-Flash-Next-EXL3-3.05bpw-heretic/snapshots/498733b9060ddf79306dac9f88b9ba43e234023d
+      # v0.7.9 的 --chat-template 直接吃 mount 內的 zh_tw.jinja，不需要再蓋 blob。
+      - --chat-template=/hf/models--jeffpeng3--Swift-1.5-Qwen3.8-Flash-Next-EXL3-3.05bpw-heretic/snapshots/498733b9060ddf79306dac9f88b9ba43e234023d/zh_tw.jinja
       - --port=8888
       - --max-batch=2
+      # 524288 = 模型原生 262144 × rope yarn 2.0。兩個 flag 必須成對，少一個會被 clamp 回 262144。
       - --max-seq-len=524288
       - --rope-yarn-factor=2.0
       - --kv-cache=q4k
@@ -28,7 +31,10 @@ services:
       - --prefill-chunk=4095
       - --prefill-interleave=1
       - --ple-ram=ssd
+      - --gpu-wait=hybrid
       - --model-name=model
+      # image 沒有 curl，開機版號檢查本來就靜默；明寫避免以後裝 curl 時多出網路等待。
+      - --no-update-check
 
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8888'"]
